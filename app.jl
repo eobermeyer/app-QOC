@@ -2,22 +2,15 @@
 # Application web interactive pour l'optimisation GRAPE d'un système    #
 # quantique à 2 niveaux (basée sur le script QOC_fun.jl fourni).        #
 #                                                                        #
-# Framework : Genie.jl (le plus simple pour un formulaire + calcul +    #
-# affichage de résultats, sans dépendre du format de notebook Pluto).   #
+# Framework : HTTP.jl (bas niveau, sans le framework complet Genie —    #
+# beaucoup moins de dépendances, démarrage nettement plus rapide).      #
 ########################################################################
 
-# Désactive Revise (hot-reload, inutile en prod et coûteux au chargement)
-# et force le mode "prod" de Genie AVANT de charger le paquet.
-ENV["JULIA_REVISE"] = "off"
-ENV["GENIE_ENV"] = get(ENV, "GENIE_ENV", "prod")
-
-println("[boot] chargement de Genie..."); flush(stdout)
-using Genie
-using Genie.Router
-using Genie.Renderer.Html
-using Genie.Requests
+println("[boot] chargement de HTTP..."); flush(stdout)
+using HTTP
+using URIs: queryparams
 using Base64: base64encode
-println("[boot] Genie chargé"); flush(stdout)
+println("[boot] HTTP chargé"); flush(stdout)
 
 println("[boot] chargement de GRAPE / QuantumControl..."); flush(stdout)
 using GRAPE
@@ -190,9 +183,9 @@ end
 # Aide pour lire et valider les paramètres du formulaire
 # ------------------------------------------------------------------
 
-function parse_params()
+function parse_params(form::Dict{String,String})
     getf(name, default) = begin
-        raw = postpayload(Symbol(name), string(default))
+        raw = get(form, name, string(default))
         try
             parse(Float64, raw)
         catch
@@ -202,10 +195,10 @@ function parse_params()
     geti(name, default) = Int(round(getf(name, default)))
 
     Dict(
-        :psi0 => postpayload(:psi0, "0"),
-        :psi1 => postpayload(:psi1, "1"),
-        :op1 => postpayload(:op1, "sigma_x"),
-        :op2 => postpayload(:op2, "sigma_y"),
+        :psi0 => get(form, "psi0", "0"),
+        :psi1 => get(form, "psi1", "1"),
+        :op1 => get(form, "op1", "sigma_x"),
+        :op2 => get(form, "op2", "sigma_y"),
         :coeff1 => getf("coeff1", -1.0),
         :coeff2 => getf("coeff2", 1000.0),
         :u1_init => getf("u1_init", 0.1),
@@ -373,32 +366,41 @@ function error_html(e)
 end
 
 # ------------------------------------------------------------------
-# Routes
+# Routeur HTTP.jl (une fonction : requête → réponse)
 # ------------------------------------------------------------------
 
-route("/") do
-    html(form_html())
-end
+html_response(body::AbstractString; status::Int = 200) =
+    HTTP.Response(status, ["Content-Type" => "text/html; charset=utf-8"], body)
 
-route("/run", method = POST) do
-    p = parse_params()
-    try
-        res = run_optimization(p)
-        html(results_html(res, p))
-    catch e
-        html(error_html(e))
+function handler(req::HTTP.Request)
+    target = HTTP.URI(req.target).path
+
+    if req.method == "GET" && target == "/"
+        return html_response(form_html())
+
+    elseif req.method == "GET" && target == "/health"
+        return HTTP.Response(200, "OK")
+
+    elseif req.method == "POST" && target == "/run"
+        form = Dict{String,String}(queryparams(String(req.body)))
+        p = parse_params(form)
+        try
+            res = run_optimization(p)
+            return html_response(results_html(res, p))
+        catch e
+            @error "Échec de l'optimisation" exception = (e, catch_backtrace())
+            return html_response(error_html(e); status = 200)
+        end
+
+    else
+        return HTTP.Response(404, "Not found")
     end
-end
-
-route("/health") do
-    "OK"
 end
 
 # ------------------------------------------------------------------
 # Démarrage du serveur (Render fournit le port via $PORT)
 # ------------------------------------------------------------------
 
-Genie.config.run_as_server = true
 const PORT = parse(Int, get(ENV, "PORT", "8000"))
 println("[boot] démarrage du serveur sur 0.0.0.0:$PORT ..."); flush(stdout)
-up(PORT, "0.0.0.0"; async = false)
+HTTP.serve(handler, "0.0.0.0", PORT)

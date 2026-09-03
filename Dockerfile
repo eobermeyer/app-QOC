@@ -9,9 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # GR headless (pas de serveur X dans le conteneur)
 ENV GKSwstype=100 \
     JULIA_DEPOT_PATH=/opt/julia_depot \
-    JULIA_NUM_THREADS=1 \
-    JULIA_REVISE=off \
-    GENIE_ENV=prod
+    JULIA_NUM_THREADS=1
 
 WORKDIR /app
 COPY app.jl /app/app.jl
@@ -22,7 +20,8 @@ COPY app.jl /app/app.jl
 RUN julia --project=/app -e '\
     using Pkg; \
     Pkg.add([ \
-        "Genie", \
+        "HTTP", \
+        "URIs", \
         "GRAPE", \
         "QuantumPropagators", \
         "QuantumControl", \
