@@ -6,22 +6,29 @@
 # affichage de résultats, sans dépendre du format de notebook Pluto).   #
 ########################################################################
 
+println("[boot] chargement de Genie..."); flush(stdout)
 using Genie
 using Genie.Router
 using Genie.Renderer.Html
 using Genie.Requests
 using Base64: base64encode
+println("[boot] Genie chargé"); flush(stdout)
 
+println("[boot] chargement de GRAPE / QuantumControl..."); flush(stdout)
 using GRAPE
 using QuantumPropagators
 using QuantumPropagators: hamiltonian, ExpProp, propagate
 using QuantumControl.Functionals: J_T_sm, J_a_fluence
 using LinearAlgebra
+println("[boot] GRAPE / QuantumControl chargés"); flush(stdout)
+
+println("[boot] chargement de Plots..."); flush(stdout)
 using Plots
 
 # Backend GR sans affichage (obligatoire dans un conteneur headless)
 ENV["GKSwstype"] = "100"
 gr()
+println("[boot] Plots chargé"); flush(stdout)
 
 # ------------------------------------------------------------------
 # Éléments physiques repris du script original
@@ -388,4 +395,5 @@ end
 
 Genie.config.run_as_server = true
 const PORT = parse(Int, get(ENV, "PORT", "8000"))
+println("[boot] démarrage du serveur sur 0.0.0.0:$PORT ..."); flush(stdout)
 up(PORT, "0.0.0.0"; async = false)
