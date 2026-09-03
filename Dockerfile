@@ -9,7 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # GR headless (pas de serveur X dans le conteneur)
 ENV GKSwstype=100 \
     JULIA_DEPOT_PATH=/opt/julia_depot \
-    JULIA_NUM_THREADS=1
+    JULIA_NUM_THREADS=1 \
+    JULIA_REVISE=off \
+    GENIE_ENV=prod
 
 WORKDIR /app
 COPY app.jl /app/app.jl

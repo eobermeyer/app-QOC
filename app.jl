@@ -6,6 +6,11 @@
 # affichage de résultats, sans dépendre du format de notebook Pluto).   #
 ########################################################################
 
+# Désactive Revise (hot-reload, inutile en prod et coûteux au chargement)
+# et force le mode "prod" de Genie AVANT de charger le paquet.
+ENV["JULIA_REVISE"] = "off"
+ENV["GENIE_ENV"] = get(ENV, "GENIE_ENV", "prod")
+
 println("[boot] chargement de Genie..."); flush(stdout)
 using Genie
 using Genie.Router
